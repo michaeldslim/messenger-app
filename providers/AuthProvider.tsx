@@ -16,6 +16,21 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+async function ensureProfile(user: User) {
+  const username =
+    user.user_metadata?.preferred_username ??
+    user.email?.split('@')[0] ??
+    user.id.slice(0, 8);
+  const display_name =
+    user.user_metadata?.full_name ?? user.user_metadata?.name ?? null;
+  const avatar_url = user.user_metadata?.avatar_url ?? null;
+
+  await supabase.from('kuku_profiles').upsert(
+    { id: user.id, username, display_name, avatar_url },
+    { onConflict: 'id', ignoreDuplicates: true }
+  );
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) ensureProfile(session.user);
       setLoading(false);
     });
 
@@ -31,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
+        if (session?.user) ensureProfile(session.user);
         setLoading(false);
       }
     );
