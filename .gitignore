@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+eas.json
 
 # Native
 .kotlin/
@@ -28,10 +29,17 @@ yarn-error.*
 
 # macOS
 .DS_Store
+
+# Environment variables
+.env
+.env.local
 *.pem
 
 # local env files
 .env*.local
+
+# Supabase
+supabase/schema.sql
 
 # typescript
 *.tsbuildinfo
