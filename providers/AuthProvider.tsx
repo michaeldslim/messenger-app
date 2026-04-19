@@ -80,15 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   const savePushToken = async (userId: string) => {
-    const token = await registerForPushNotifications();
-    console.log('[Push] token:', token, 'isDevice:', Device.isDevice);
-    if (token) {
-      const { error } = await supabase
-        .from('kuku_profiles')
-        .update({ push_token: token })
-        .eq('id', userId);
-      if (error) console.error('[Push] failed to save token:', error.message);
-      else console.log('[Push] token saved successfully');
+    try {
+      const token = await registerForPushNotifications();
+      console.log('[Push] token:', token, 'isDevice:', Device.isDevice);
+      if (token) {
+        const { error } = await supabase
+          .from('kuku_profiles')
+          .update({ push_token: token })
+          .eq('id', userId);
+        if (error) console.error('[Push] failed to save token:', error.message);
+        else console.log('[Push] token saved successfully');
+      }
+    } catch (error) {
+      console.error('[Push] registration failed:', error);
     }
   };
 

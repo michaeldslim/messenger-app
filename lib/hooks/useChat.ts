@@ -218,6 +218,15 @@ export async function sendMessage(
   }).select().single();
 
   if (error) throw error;
+
+  // Fire-and-forget push delivery after persisting the message.
+  const { error: pushError } = await supabase.functions.invoke('push-notification', {
+    body: { record: data },
+  });
+  if (pushError) {
+    console.error('push-notification invoke error:', pushError.message);
+  }
+
   return data;
 }
 
