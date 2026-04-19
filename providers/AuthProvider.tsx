@@ -76,17 +76,19 @@ async function ensureProfile(user: User) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   const savePushToken = async (userId: string) => {
     const token = await registerForPushNotifications();
     console.log('[Push] token:', token, 'isDevice:', Device.isDevice);
     if (token) {
-      await supabase
+      const { error } = await supabase
         .from('kuku_profiles')
         .update({ push_token: token })
         .eq('id', userId);
+      if (error) console.error('[Push] failed to save token:', error.message);
+      else console.log('[Push] token saved successfully');
     }
   };
 
