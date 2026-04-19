@@ -43,6 +43,7 @@ export default function NewConversationScreen() {
         params: {
           id: conversationId,
           title: profile.display_name ?? profile.username,
+          otherUserId: profile.id,
         },
       });
     } catch (e: any) {

@@ -1,6 +1,48 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+async function registerForPushNotifications(): Promise<string | null> {
+  if (!Device.isDevice) return null;
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') return null;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  if (!projectId) return null;
+
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('messages', {
+      name: 'Messages',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#4285F4',
+    });
+  }
+
+  return token;
+}
 
 type AuthContextType = {
   session: Session | null;
@@ -34,12 +76,28 @@ async function ensureProfile(user: User) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const notificationListener = useRef<Notifications.EventSubscription>();
+  const responseListener = useRef<Notifications.EventSubscription>();
+
+  const savePushToken = async (userId: string) => {
+    const token = await registerForPushNotifications();
+    console.log('[Push] token:', token, 'isDevice:', Device.isDevice);
+    if (token) {
+      await supabase
+        .from('kuku_profiles')
+        .update({ push_token: token })
+        .eq('id', userId);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) ensureProfile(session.user);
+      if (session?.user) {
+        ensureProfile(session.user);
+        savePushToken(session.user.id);
+      }
       setLoading(false);
     });
 
@@ -47,12 +105,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        if (session?.user) ensureProfile(session.user);
+        if (session?.user) {
+          ensureProfile(session.user);
+          savePushToken(session.user.id);
+        }
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Notification listeners
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+      // Notification received while app is foregrounded — handled by setNotificationHandler above
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      // User tapped notification — navigate to the conversation
+      const conversationId = response.notification.request.content.data?.conversationId as string | undefined;
+      const title = response.notification.request.content.data?.senderName as string | undefined;
+      if (conversationId) {
+        // Use a small delay to ensure router is mounted
+        setTimeout(() => {
+          const { router } = require('expo-router');
+          router.push({ pathname: '/(app)/chat/[id]', params: { id: conversationId, title: title ?? 'Chat' } });
+        }, 500);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
   }, []);
 
   const signOut = async () => {

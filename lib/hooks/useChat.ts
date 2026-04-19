@@ -1,7 +1,42 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../../providers/AuthProvider';
 import type { Conversation, Message, Profile } from '../types';
+
+export function usePresence(conversationId: string, otherUserId: string | null) {
+  const { user } = useAuth();
+  const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!user || !conversationId) return;
+
+    const channel = supabase.channel(`presence:${conversationId}`, {
+      config: { presence: { key: user.id } },
+    });
+
+    channelRef.current = channel;
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<{ user_id: string }>();
+        const onlineIds = Object.values(state).flat().map((p) => p.user_id);
+        setIsOtherOnline(otherUserId ? onlineIds.includes(otherUserId) : false);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: user.id });
+        }
+      });
+
+    return () => {
+      channel.untrack();
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, user, otherUserId]);
+
+  return { isOtherOnline };
+}
 
 export function useConversations() {
   const { user } = useAuth();

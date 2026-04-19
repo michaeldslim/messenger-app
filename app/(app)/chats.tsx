@@ -48,7 +48,7 @@ function ConversationItem({ item }: { item: Conversation }) {
       onPress={() =>
         router.push({
           pathname: '/(app)/chat/[id]',
-          params: { id: item.id, title: displayName },
+          params: { id: item.id, title: displayName, otherUserId: item.other_user?.id ?? '' },
         })
       }
     >

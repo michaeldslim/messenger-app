@@ -11,10 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { useAuth } from '../../../providers/AuthProvider';
-import { useMessages, sendMessage } from '../../../lib/hooks/useChat';
+import { useMessages, sendMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
 
 function formatTime(dateStr: string) {
@@ -73,13 +74,15 @@ function MessageBubble({ message, isOwn }: { message: Message; isOwn: boolean })
 }
 
 export default function ChatScreen() {
-  const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
+  const { id, title, otherUserId } = useLocalSearchParams<{ id: string; title: string; otherUserId: string }>();
   const { user } = useAuth();
   const router = useRouter();
   const { messages, loading } = useMessages(id);
+  const { isOtherOnline } = usePresence(id, otherUserId ?? null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
 
   const handleSend = async () => {
     const trimmed = text.trim();
@@ -101,7 +104,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
       {/* Header */}
@@ -109,7 +112,15 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{title ?? 'Chat'}</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{title ?? 'Chat'}</Text>
+          {isOtherOnline && (
+            <View style={styles.onlineRow}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>online</Text>
+            </View>
+          )}
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
@@ -126,8 +137,10 @@ export default function ChatScreen() {
           renderItem={({ item }) => (
             <MessageBubble message={item} isOwn={item.sender_id === user?.id} />
           )}
+          style={styles.messageList}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.centered}>
               <Text style={styles.emptyText}>No messages yet. Say hello! 👋</Text>
@@ -137,7 +150,7 @@ export default function ChatScreen() {
       )}
 
       {/* Input bar */}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
         <TextInput
           style={styles.input}
           placeholder="Message…"
@@ -177,16 +190,20 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4, width: 40 },
   backText: { fontSize: 22, color: '#4285F4' },
+  headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
-    flex: 1,
     fontSize: 17,
     fontWeight: '700',
     color: '#1a1a1a',
     textAlign: 'center',
   },
+  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#34C759' },
+  onlineText: { fontSize: 12, color: '#34C759', fontWeight: '500' },
+  messageList: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyText: { color: '#999', fontSize: 15 },
-  messagesList: { paddingVertical: 12, paddingHorizontal: 12, gap: 8 },
+  messagesList: { flexGrow: 1, paddingVertical: 12, paddingHorizontal: 12, gap: 8 },
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

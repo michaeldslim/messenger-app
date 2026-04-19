@@ -31,7 +31,22 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4285F4",
+          "androidMode": "default"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f88bb8db-1c5a-4819-9d86-a093b0c92ff8"
+      }
+    },
+    "owner": "mike008"
   }
 }
