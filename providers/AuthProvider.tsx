@@ -82,14 +82,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const savePushToken = async (userId: string) => {
     try {
       const token = await registerForPushNotifications();
-      console.log('[Push] token:', token, 'isDevice:', Device.isDevice);
       if (token) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('kuku_profiles')
           .update({ push_token: token })
-          .eq('id', userId);
-        if (error) console.error('[Push] failed to save token:', error.message);
-        else console.log('[Push] token saved successfully');
+          .eq('id', userId)
+          .select('id');
+        if (error) {
+          console.error('[Push] failed to save token:', error.message);
+        } else if (!data?.length) {
+          console.error('[Push] profile row not found for user:', userId);
+        }
       }
     } catch (error) {
       console.error('[Push] registration failed:', error);
@@ -101,8 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        ensureProfile(session.user);
-        savePushToken(session.user.id);
+        ensureProfile(session.user)
+          .then(() => savePushToken(session.user.id))
+          .catch((error) => console.error('ensureProfile error:', error));
       }
       setLoading(false);
     });
@@ -112,8 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (_event, session) => {
         setSession(session);
         if (session?.user) {
-          ensureProfile(session.user);
-          savePushToken(session.user.id);
+          ensureProfile(session.user)
+            .then(() => savePushToken(session.user.id))
+            .catch((error) => console.error('ensureProfile error:', error));
         }
         setLoading(false);
       }

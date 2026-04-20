@@ -220,8 +220,12 @@ export async function sendMessage(
   if (error) throw error;
 
   // Fire-and-forget push delivery after persisting the message.
+  const { data: { session } } = await supabase.auth.getSession();
   const { error: pushError } = await supabase.functions.invoke('push-notification', {
     body: { record: data },
+    headers: session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : undefined,
   });
   if (pushError) {
     console.error('push-notification invoke error:', pushError.message);
