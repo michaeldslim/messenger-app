@@ -50,5 +50,14 @@ supabase/schema.sql
 *.tsbuildinfo
 
 # generated native folders
-/ios
-/android
+ios/
+ios/build/
+ios/Pods/
+
+android/.gradle/
+android/build/
+android/app/release/
+android/app/bin/
+android/app/build/
+android/captures/
+android/local.properties
