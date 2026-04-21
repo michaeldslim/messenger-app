@@ -93,6 +93,7 @@ Deno.serve(async (req: Request) => {
 
     const resultText = await response.text();
     if (!response.ok) {
+      console.error('Expo Push API failure', { status: response.status, body: resultText });
       return new Response(
         JSON.stringify({
           error: 'Expo Push API request failed',

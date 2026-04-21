@@ -227,8 +227,9 @@ export async function sendMessage(
       ? { Authorization: `Bearer ${session.access_token}` }
       : undefined,
   });
+
   if (pushError) {
-    console.error('push-notification invoke error:', pushError.message);
+    console.error('push-notification invoke error:', pushError.message, pushError);
   }
 
   return data;

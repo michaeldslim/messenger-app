@@ -27,10 +27,16 @@ async function registerForPushNotifications(): Promise<string | null> {
   }
   if (finalStatus !== 'granted') return null;
 
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  if (!projectId) return null;
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    (Constants as any).manifest2?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
 
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  const token = (
+    await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    )
+  ).data;
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('messages', {
@@ -82,17 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const savePushToken = async (userId: string) => {
     try {
       const token = await registerForPushNotifications();
-      if (token) {
-        const { data, error } = await supabase
-          .from('kuku_profiles')
-          .update({ push_token: token })
-          .eq('id', userId)
-          .select('id');
-        if (error) {
-          console.error('[Push] failed to save token:', error.message);
-        } else if (!data?.length) {
-          console.error('[Push] profile row not found for user:', userId);
-        }
+      if (!token) {
+        return;
+      }
+      const { data, error } = await supabase
+        .from('kuku_profiles')
+        .update({ push_token: token })
+        .eq('id', userId)
+        .select('id');
+      if (error) {
+        console.error('[Push] failed to save token:', error.message);
+      } else if (!data?.length) {
+        console.error('[Push] profile row not found for user:', userId);
       }
     } catch (error) {
       console.error('[Push] registration failed:', error);
