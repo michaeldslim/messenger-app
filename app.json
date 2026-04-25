@@ -26,7 +26,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mike008.messengerapp",
-      "googleServicesFile": "./android/app/google-services.json"
+      "googleServicesFile": "./android/app/google-services.json",
+      "edgeToEdge": true
     },
     "web": {
       "favicon": "./assets/favicon.png",

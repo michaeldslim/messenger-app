@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   ImageBackground,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -17,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
-import { Keyboard } from 'react-native';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useMessages, sendMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
@@ -85,10 +85,15 @@ export default function ChatScreen() {
   const { isOtherOnline } = usePresence(id, otherUserId ?? null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
-  // Scroll to bottom when keyboard opens — not needed with inverted FlatList
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   // Dismiss all notifications when any chat screen is opened and clear badge count
   useEffect(() => {
@@ -116,6 +121,7 @@ export default function ChatScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
+      enabled={Platform.OS === 'ios' || keyboardVisible}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -168,7 +174,7 @@ export default function ChatScreen() {
       </ImageBackground>
 
       {/* Input bar */}
-      <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
+      <View style={[styles.inputBar, { paddingBottom: (!keyboardVisible && insets.bottom > 0) ? insets.bottom : 8 }]}>
         <TextInput
           style={styles.input}
           placeholder="Message…"
