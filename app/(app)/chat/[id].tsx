@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useMessages, sendMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
@@ -83,6 +84,15 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
+
+  // Dismiss any pending notifications for this conversation when the screen is opened
+  useEffect(() => {
+    Notifications.getPresentedNotificationsAsync().then((presented) => {
+      presented
+        .filter((n) => n.request.content.data?.conversationId === id)
+        .forEach((n) => Notifications.dismissNotificationAsync(n.request.identifier));
+    });
+  }, [id]);
 
   const handleSend = async () => {
     const trimmed = text.trim();

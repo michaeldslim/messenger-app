@@ -75,6 +75,7 @@ Deno.serve(async (req: Request) => {
       sound: 'default',
       title: senderName,
       body: record.content ?? '📎 Attachment',
+      priority: 'high',
       data: {
         conversationId: record.conversation_id,
         senderName,
