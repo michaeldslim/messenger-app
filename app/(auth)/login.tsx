@@ -10,30 +10,13 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const isMounted = useRef(true);
-
-  useEffect(() => {
-    isMounted.current = true;
-
-    // If a session arrives via deep link while we're waiting, navigate immediately
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && isMounted.current) {
-        router.replace('/(app)/chats');
-      }
-    });
-
-    return () => {
-      isMounted.current = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const redirectUri = AuthSession.makeRedirectUri({
     scheme: 'messenger-app',
@@ -72,15 +55,16 @@ export default function LoginScreen() {
             refresh_token: refreshToken,
           });
           if (sessionError) throw sessionError;
+          // AuthProvider's onAuthStateChange will update session state,
+          // which triggers navigation via app/_layout.tsx or index.tsx
         }
-        // onAuthStateChange above will handle navigation
       }
       // If result.type === 'dismiss', the deep link may have already set the session
       // via onAuthStateChange — no error needed
     } catch (err: any) {
       Alert.alert('Sign in failed', err.message);
     } finally {
-      if (isMounted.current) setLoading(false);
+      setLoading(false);
     }
   };
 

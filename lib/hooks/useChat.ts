@@ -114,14 +114,9 @@ export function useConversations() {
   useEffect(() => {
     fetchConversations();
 
-    // Real-time: refresh list when new messages arrive
+    // Real-time: refresh list when conversations are updated (updated_at changes on new message via trigger)
     const channel = supabase
       .channel('conversations-list')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'kuku_messages' },
-        () => fetchConversations()
-      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'kuku_conversations' },
@@ -192,9 +187,14 @@ export function useMessages(conversationId: string) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m))
-          );
+          // If the message was soft-deleted, remove it from state
+          if (payload.new.is_deleted) {
+            setMessages((prev) => prev.filter((m) => m.id !== payload.new.id));
+          } else {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m))
+            );
+          }
         }
       )
       .subscribe();
