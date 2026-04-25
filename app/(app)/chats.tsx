@@ -94,10 +94,10 @@ export default function ChatsScreen() {
             style={styles.newChatBtn}
             onPress={() => router.push('/(app)/new-conversation')}
           >
-            <Text style={styles.newChatText}>＋</Text>
+            <Text style={styles.newChatText}>＋ New chat</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={signOut}>
-            <Text style={styles.signOut}>Sign out</Text>
+          <TouchableOpacity style={styles.signOutChip} onPress={signOut}>
+            <Text style={styles.signOutText}>Sign out</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -138,15 +138,23 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   newChatBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
     backgroundColor: '#4285F4',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  newChatText: { color: '#fff', fontSize: 20, lineHeight: 24 },
-  signOut: { color: '#999', fontSize: 14 },
+  newChatText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  signOutChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#fff0f0',
+    borderWidth: 1,
+    borderColor: '#e53935',
+  },
+  signOutText: { color: '#e53935', fontSize: 13, fontWeight: '600' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 8 },
   emptyHint: { fontSize: 14, color: '#999' },

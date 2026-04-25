@@ -55,8 +55,9 @@ export default function NewConversationScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>← Back</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.backLabel}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New Chat</Text>
         <View style={{ width: 60 }} />
@@ -131,7 +132,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  back: { color: '#4285F4', fontSize: 16, width: 60 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', width: 60, gap: 2 },
+  backChevron: { color: '#4285F4', fontSize: 28, lineHeight: 32, marginTop: -2 },
+  backLabel: { color: '#4285F4', fontSize: 16, fontWeight: '500' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#1a1a1a' },
   searchContainer: { padding: 12 },
   searchInput: {

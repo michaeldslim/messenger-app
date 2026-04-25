@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -86,13 +88,7 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
-  // Scroll to bottom when keyboard opens
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-    return () => sub.remove();
-  }, []);
+  // Scroll to bottom when keyboard opens — not needed with inverted FlatList
 
   // Dismiss all notifications when any chat screen is opened and clear badge count
   useEffect(() => {
@@ -107,8 +103,6 @@ export default function ChatScreen() {
     setText('');
     try {
       await sendMessage(id, user.id, trimmed);
-      // Scroll to bottom after send
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e: any) {
       Alert.alert('Failed to send', e.message);
       setText(trimmed); // restore text on failure
@@ -121,12 +115,13 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      keyboardVerticalOffset={0}
     >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.backLabel}>Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>{title ?? 'Chat'}</Text>
@@ -141,30 +136,36 @@ export default function ChatScreen() {
       </View>
 
       {/* Messages */}
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4285F4" />
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MessageBubble message={item} isOwn={item.sender_id === user?.id} />
-          )}
-          style={styles.messageList}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-          onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <View style={styles.centered}>
-              <Text style={styles.emptyText}>No messages yet. Say hello! 👋</Text>
-            </View>
-          }
-        />
-      )}
+      <ImageBackground
+        source={require('../../../assets/bg-leaves.png')}
+        style={styles.messageListBg}
+        resizeMode="repeat"
+        imageStyle={{ opacity: 1, transform: [{ scale: 5 }] }}
+      >
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#4285F4" />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={[...messages].reverse()}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <MessageBubble message={item} isOwn={item.sender_id === user?.id} />
+            )}
+            style={styles.messageList}
+            contentContainerStyle={styles.messagesList}
+            inverted
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <View style={styles.centered}>
+                <Text style={styles.emptyText}>No messages yet. Say hello! 👋</Text>
+              </View>
+            }
+          />
+        )}
+      </ImageBackground>
 
       {/* Input bar */}
       <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
@@ -185,7 +186,7 @@ export default function ChatScreen() {
           {sending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.sendText}>↑</Text>
+            <Ionicons name="send" size={20} color="#fff" />
           )}
         </TouchableOpacity>
       </View>
@@ -205,8 +206,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  backBtn: { padding: 4, width: 40 },
-  backText: { fontSize: 22, color: '#4285F4' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', width: 60, gap: 2, padding: 4 },
+  backChevron: { color: '#4285F4', fontSize: 28, lineHeight: 32, marginTop: -2 },
+  backLabel: { color: '#4285F4', fontSize: 16, fontWeight: '500' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
     fontSize: 17,
@@ -217,6 +219,7 @@ const styles = StyleSheet.create({
   onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#34C759' },
   onlineText: { fontSize: 12, color: '#34C759', fontWeight: '500' },
+  messageListBg: { flex: 1, overflow: 'hidden' },
   messageList: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyText: { color: '#999', fontSize: 15 },
