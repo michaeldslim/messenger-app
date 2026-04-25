@@ -87,7 +87,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>뭐라고? (Mworago?)</Text>
-      <Text style={styles.subtitle}>Connect with anyone, anywhere</Text>
+      <Text style={styles.subtitle}>그 카톡말고 뭐라고?</Text>
 
       <TouchableOpacity
         style={styles.googleButton}

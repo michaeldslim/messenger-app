@@ -78,6 +78,7 @@ Deno.serve(async (req: Request) => {
       data: {
         conversationId: record.conversation_id,
         senderName,
+        senderId: record.sender_id,
       },
       channelId: 'messages',
     }));

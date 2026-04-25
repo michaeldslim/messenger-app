@@ -132,7 +132,7 @@ export function useConversations() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchConversations]);
 
-  return { conversations, loading, refetch: fetchConversations };
+  return { conversations, loading };
 }
 
 export function useMessages(conversationId: string) {
@@ -202,7 +202,7 @@ export function useMessages(conversationId: string) {
     return () => { supabase.removeChannel(channel); };
   }, [conversationId, fetchMessages]);
 
-  return { messages, loading, refetch: fetchMessages };
+  return { messages, loading };
 }
 
 export async function sendMessage(
@@ -210,29 +210,17 @@ export async function sendMessage(
   senderId: string,
   content: string
 ) {
-  const { data, error } = await supabase.from('kuku_messages').insert({
+  const { error } = await supabase.from('kuku_messages').insert({
     conversation_id: conversationId,
     sender_id: senderId,
     content: content.trim(),
     message_type: 'text',
-  }).select().single();
+  });
 
   if (error) throw error;
 
-  // Fire-and-forget push delivery after persisting the message.
-  const { data: { session } } = await supabase.auth.getSession();
-  const { error: pushError } = await supabase.functions.invoke('push-notification', {
-    body: { record: data },
-    headers: session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : undefined,
-  });
-
-  if (pushError) {
-    console.error('push-notification invoke error:', pushError.message, pushError);
-  }
-
-  return data;
+  // Push notification is handled by the Supabase database webhook (on_new_message_push)
+  // which calls the push-notification edge function on every INSERT into kuku_messages.
 }
 
 export async function createOrGetDM(

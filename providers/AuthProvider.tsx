@@ -32,10 +32,12 @@ async function registerForPushNotifications(): Promise<string | null> {
     (Constants as any).manifest2?.extra?.eas?.projectId ??
     Constants.easConfig?.projectId;
 
+  if (!projectId) {
+    throw new Error('[Push] EAS projectId not found in app config. Ensure extra.eas.projectId is set in app.json.');
+  }
+
   const token = (
-    await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    )
+    await Notifications.getExpoPushTokenAsync({ projectId })
   ).data;
 
   if (Platform.OS === 'android') {
@@ -82,24 +84,29 @@ async function ensureProfile(user: User) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
-  const savePushToken = async (userId: string) => {
+  const savePushToken = async (user: User) => {
     try {
       const token = await registerForPushNotifications();
       if (!token) {
         return;
       }
-      const { data, error } = await supabase
+      const username =
+        user.user_metadata?.preferred_username ??
+        user.email?.split('@')[0] ??
+        user.id.slice(0, 8);
+      const display_name =
+        user.user_metadata?.full_name ?? user.user_metadata?.name ?? null;
+      const avatar_url = user.user_metadata?.avatar_url ?? null;
+      const { error } = await supabase
         .from('kuku_profiles')
-        .update({ push_token: token })
-        .eq('id', userId)
-        .select('id');
+        .upsert(
+          { id: user.id, username, display_name, avatar_url, push_token: token },
+          { onConflict: 'id' }
+        );
       if (error) {
         console.error('[Push] failed to save token:', error.message);
-      } else if (!data?.length) {
-        console.error('[Push] profile row not found for user:', userId);
       }
     } catch (error) {
       console.error('[Push] registration failed:', error);
@@ -112,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       if (session?.user) {
         ensureProfile(session.user)
-          .then(() => savePushToken(session.user.id))
+          .then(() => savePushToken(session.user))
           .catch((error) => console.error('ensureProfile error:', error));
       }
       setLoading(false);
@@ -120,11 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
-        if (session?.user) {
+        if (session?.user && event === 'SIGNED_IN') {
           ensureProfile(session.user)
-            .then(() => savePushToken(session.user.id))
+            .then(() => savePushToken(session.user))
             .catch((error) => console.error('ensureProfile error:', error));
         }
         setLoading(false);
@@ -132,26 +139,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Notification listeners
-    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-      // Notification received while app is foregrounded — handled by setNotificationHandler above
-    });
-
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       // User tapped notification — navigate to the conversation
       const conversationId = response.notification.request.content.data?.conversationId as string | undefined;
-      const title = response.notification.request.content.data?.senderName as string | undefined;
+      const senderName = response.notification.request.content.data?.senderName as string | undefined;
+      const senderId = response.notification.request.content.data?.senderId as string | undefined;
       if (conversationId) {
         // Use a small delay to ensure router is mounted
         setTimeout(() => {
           const { router } = require('expo-router');
-          router.push({ pathname: '/(app)/chat/[id]', params: { id: conversationId, title: title ?? 'Chat' } });
+          router.push({
+            pathname: '/(app)/chat/[id]',
+            params: { id: conversationId, title: senderName ?? 'Chat', otherUserId: senderId },
+          });
         }, 500);
       }
     });
 
     return () => {
       subscription.unsubscribe();
-      notificationListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);
