@@ -85,13 +85,10 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
-  // Dismiss any pending notifications for this conversation when the screen is opened
+  // Dismiss all notifications when any chat screen is opened and clear badge count
   useEffect(() => {
-    Notifications.getPresentedNotificationsAsync().then((presented) => {
-      presented
-        .filter((n) => n.request.content.data?.conversationId === id)
-        .forEach((n) => Notifications.dismissNotificationAsync(n.request.identifier));
-    });
+    Notifications.dismissAllNotificationsAsync();
+    Notifications.setBadgeCountAsync(0);
   }, [id]);
 
   const handleSend = async () => {
@@ -114,7 +111,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* Header */}

@@ -55,8 +55,7 @@ export default function LoginScreen() {
             refresh_token: refreshToken,
           });
           if (sessionError) throw sessionError;
-          // AuthProvider's onAuthStateChange will update session state,
-          // which triggers navigation via app/_layout.tsx or index.tsx
+          router.replace('/(app)/chats');
         }
       }
       // If result.type === 'dismiss', the deep link may have already set the session

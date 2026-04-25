@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../providers/AuthProvider';
 import { useConversations } from '../../lib/hooks/useChat';
 import type { Conversation } from '../../lib/types';
@@ -76,6 +78,12 @@ export default function ChatsScreen() {
   const { signOut } = useAuth();
   const { conversations, loading } = useConversations();
   const router = useRouter();
+
+  // Clear all notifications and badge when user is on the chats list
+  useEffect(() => {
+    Notifications.dismissAllNotificationsAsync();
+    Notifications.setBadgeCountAsync(0);
+  }, []);
 
   return (
     <View style={styles.container}>
