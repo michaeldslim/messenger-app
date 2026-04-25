@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
+import { Keyboard } from 'react-native';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useMessages, sendMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
@@ -85,6 +86,14 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
+  // Scroll to bottom when keyboard opens
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    return () => sub.remove();
+  }, []);
+
   // Dismiss all notifications when any chat screen is opened and clear badge count
   useEffect(() => {
     Notifications.dismissAllNotificationsAsync();
@@ -147,6 +156,7 @@ export default function ChatScreen() {
           style={styles.messageList}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.centered}>
