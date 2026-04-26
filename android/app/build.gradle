@@ -98,6 +98,24 @@ android {
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "Mworago-${outputFileName}"
+        }
+    }
+    // Rename AAB output (bundleRelease) to match APK naming convention
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'bundleRelease') {
+            task.doLast {
+                def aabDir = file("${buildDir}/outputs/bundle/release")
+                def oldFile = new File(aabDir, 'app-release.aab')
+                def newFile = new File(aabDir, 'Mworago-app-release.aab')
+                if (oldFile.exists()) {
+                    oldFile.renameTo(newFile)
+                }
+            }
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
