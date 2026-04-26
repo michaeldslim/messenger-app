@@ -17,17 +17,70 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useMessages, sendMessage, deleteMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
 
-function formatTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function getDateKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24));
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 0) return time;
+  if (diffDays < 7) return `${d.toLocaleString('default', { weekday: 'short' })} ${time}`;
+  const month = d.toLocaleString('default', { month: 'short' });
+  if (d.getFullYear() === now.getFullYear()) return `${month} ${d.getDate()}, ${time}`;
+  return `${month} ${d.getDate()} ${d.getFullYear()}, ${time}`;
+}
+
+function formatDateSeparator(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  const month = d.toLocaleString('default', { month: 'long' });
+  if (d.getFullYear() === now.getFullYear()) return `${month} ${d.getDate()}`;
+  return `${month} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+type SeparatorItem = { type: 'separator'; date: string; id: string };
+type ListItem = Message | SeparatorItem;
+
+function buildMessageList(reversedMessages: Message[]): ListItem[] {
+  const result: ListItem[] = [];
+  for (let i = 0; i < reversedMessages.length; i++) {
+    result.push(reversedMessages[i]);
+    const currentKey = getDateKey(reversedMessages[i].created_at);
+    const nextKey = i + 1 < reversedMessages.length ? getDateKey(reversedMessages[i + 1].created_at) : null;
+    if (nextKey === null || currentKey !== nextKey) {
+      result.push({ type: 'separator', date: reversedMessages[i].created_at, id: `sep-${currentKey}` });
+    }
+  }
+  return result;
+}
+
+function DateSeparator({ label }: { label: string }) {
+  return (
+    <View style={styles.dateSeparatorRow}>
+      <View style={styles.dateSeparatorLine} />
+      <View style={styles.dateSeparatorPill}>
+        <Text style={styles.dateSeparatorText}>{label}</Text>
+      </View>
+      <View style={styles.dateSeparatorLine} />
+    </View>
+  );
 }
 
 function Avatar({ uri, name, size = 32 }: { uri?: string | null; name?: string | null; size?: number }) {
@@ -97,6 +150,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const { messages, loading } = useMessages(id);
   const { isOtherOnline } = usePresence(id, otherUserId ?? null);
+  const listData = useMemo(() => buildMessageList([...messages].reverse()), [messages]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -169,30 +223,36 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={listRef}
-            data={[...messages].reverse()}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MessageBubble
-                message={item}
-                isOwn={item.sender_id === user?.id}
-                onDelete={() => {
-                  Alert.alert('Delete message', 'This message will be deleted for everyone.', [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await deleteMessage(item.id);
-                        } catch (e: any) {
-                          Alert.alert('Error', e.message);
-                        }
+            data={listData}
+            keyExtractor={(item) => ('type' in item ? item.id : item.id)}
+            renderItem={({ item }) => {
+              if ('type' in item && item.type === 'separator') {
+                return <DateSeparator label={formatDateSeparator(item.date)} />;
+              }
+              const msg = item as Message;
+              return (
+                <MessageBubble
+                  message={msg}
+                  isOwn={msg.sender_id === user?.id}
+                  onDelete={() => {
+                    Alert.alert('Delete message', 'This message will be deleted for everyone.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await deleteMessage(msg.id);
+                          } catch (e: any) {
+                            Alert.alert('Error', e.message);
+                          }
+                        },
                       },
-                    },
-                  ]);
-                }}
-              />
-            )}
+                    ]);
+                  }}
+                />
+              );
+            }}
             style={styles.messageList}
             contentContainerStyle={styles.messagesList}
             inverted
@@ -330,4 +390,19 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: '#c0d4f5' },
   sendText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  dateSeparatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    marginHorizontal: 4,
+  },
+  dateSeparatorLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.1)' },
+  dateSeparatorPill: {
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    marginHorizontal: 8,
+  },
+  dateSeparatorText: { fontSize: 12, color: '#555', fontWeight: '500' },
 });
