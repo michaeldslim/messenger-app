@@ -12,6 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../../providers/AuthProvider';
-import { useMessages, sendMessage, usePresence } from '../../../lib/hooks/useChat';
+import { useMessages, sendMessage, deleteMessage, usePresence } from '../../../lib/hooks/useChat';
 import type { Message } from '../../../lib/types';
 
 function formatTime(dateStr: string) {
@@ -51,29 +52,42 @@ function Avatar({ uri, name, size = 32 }: { uri?: string | null; name?: string |
   );
 }
 
-function MessageBubble({ message, isOwn }: { message: Message; isOwn: boolean }) {
+function MessageBubble({ message, isOwn, onDelete }: { message: Message; isOwn: boolean; onDelete?: () => void }) {
   const senderName = message.sender?.display_name ?? message.sender?.username ?? '';
 
-  return (
-    <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
-      {!isOwn && (
-        <Avatar
-          uri={message.sender?.avatar_url}
-          name={senderName}
-        />
-      )}
-      <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
-        {message.content && (
-          <Text style={[styles.bubbleText, isOwn && styles.bubbleTextOwn]}>
-            {message.content}
-          </Text>
-        )}
-        <Text style={[styles.bubbleTime, isOwn && styles.bubbleTimeOwn]}>
-          {formatTime(message.created_at)}
-          {message.is_edited && ' · edited'}
-        </Text>
+  if (message.is_deleted) {
+    return (
+      <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
+        {!isOwn && <Avatar uri={null} name={senderName} />}
+        <View style={[styles.bubble, styles.bubbleDeleted]}>
+          <Text style={styles.deletedText}>This message was deleted</Text>
+        </View>
       </View>
-    </View>
+    );
+  }
+
+  return (
+    <TouchableWithoutFeedback onLongPress={isOwn ? onDelete : undefined} delayLongPress={400}>
+      <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
+        {!isOwn && (
+          <Avatar
+            uri={message.sender?.avatar_url}
+            name={senderName}
+          />
+        )}
+        <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+          {message.content && (
+            <Text style={[styles.bubbleText, isOwn && styles.bubbleTextOwn]}>
+              {message.content}
+            </Text>
+          )}
+          <Text style={[styles.bubbleTime, isOwn && styles.bubbleTimeOwn]}>
+            {formatTime(message.created_at)}
+            {message.is_edited && ' · edited'}
+          </Text>
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -158,7 +172,26 @@ export default function ChatScreen() {
             data={[...messages].reverse()}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <MessageBubble message={item} isOwn={item.sender_id === user?.id} />
+              <MessageBubble
+                message={item}
+                isOwn={item.sender_id === user?.id}
+                onDelete={() => {
+                  Alert.alert('Delete message', 'This message will be deleted for everyone.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await deleteMessage(item.id);
+                        } catch (e: any) {
+                          Alert.alert('Error', e.message);
+                        }
+                      },
+                    },
+                  ]);
+                }}
+              />
             )}
             style={styles.messageList}
             contentContainerStyle={styles.messagesList}
@@ -252,6 +285,13 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  bubbleDeleted: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderStyle: 'dashed',
+  },
+  deletedText: { fontSize: 14, color: '#aaa', fontStyle: 'italic' },
   bubbleOwn: {
     backgroundColor: '#4285F4',
     borderBottomRightRadius: 4,

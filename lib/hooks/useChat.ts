@@ -140,7 +140,6 @@ export function useMessages(conversationId: string) {
         .from('kuku_messages')
         .select('*, sender:kuku_profiles!sender_id(id, username, display_name, avatar_url)')
         .eq('conversation_id', conversationId)
-        .eq('is_deleted', false)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -187,14 +186,10 @@ export function useMessages(conversationId: string) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          // If the message was soft-deleted, remove it from state
-          if (payload.new.is_deleted) {
-            setMessages((prev) => prev.filter((m) => m.id !== payload.new.id));
-          } else {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m))
-            );
-          }
+          // Update the message in state (handles soft delete and edits)
+          setMessages((prev) =>
+            prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m))
+          );
         }
       )
       .subscribe();
@@ -221,6 +216,15 @@ export async function sendMessage(
 
   // Push notification is handled by the Supabase database webhook (on_new_message_push)
   // which calls the push-notification edge function on every INSERT into kuku_messages.
+}
+
+export async function deleteMessage(messageId: string) {
+  const { error } = await supabase
+    .from('kuku_messages')
+    .update({ is_deleted: true, content: null, updated_at: new Date().toISOString() })
+    .eq('id', messageId);
+
+  if (error) throw error;
 }
 
 export async function createOrGetDM(
