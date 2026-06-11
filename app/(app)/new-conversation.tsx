@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '../../providers/AuthProvider';
@@ -30,6 +31,7 @@ export default function NewConversationScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { users, loading, searchUsers } = useUsers();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [starting, setStarting] = useState<string | null>(null);
 
@@ -54,7 +56,7 @@ export default function NewConversationScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backChevron}>‹</Text>
           <Text style={styles.backLabel}>Back</Text>
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 12,
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,

@@ -192,7 +192,7 @@ export default function ChatScreen() {
       enabled={Platform.OS === 'ios' || keyboardVisible}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backChevron}>‹</Text>
           <Text style={styles.backLabel}>Back</Text>
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 12,
     paddingHorizontal: 12,
     paddingBottom: 12,
     backgroundColor: '#fff',

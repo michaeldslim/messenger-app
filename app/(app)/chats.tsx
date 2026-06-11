@@ -7,6 +7,7 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
@@ -78,6 +79,7 @@ export default function ChatsScreen() {
   const { signOut } = useAuth();
   const { conversations, loading } = useConversations();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Clear all notifications and badge when user is on the chats list
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>Chats</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -129,7 +131,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 12,
     paddingHorizontal: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
